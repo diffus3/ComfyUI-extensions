@@ -200,7 +200,7 @@ app.registerExtension({
                     console.log(input);
                     console.log("output:");
                     console.log(output);
-                    if (!input.link && !output.link) {
+                    if (!input.link && (!output.links || output.links.length == 0)) {
                         input.type = '*';
                         input.name = '*';
                         output.type = '*';
@@ -208,7 +208,7 @@ app.registerExtension({
                     }
                 }
 
-                validateLinks(this);
+                //validateLinks(this);
                 //this.inputs[slot].name = 
                 
                 
