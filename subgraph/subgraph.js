@@ -644,6 +644,8 @@ app.registerExtension({
 
 				const nodeInParentGraph = this.graph._subgraph_node
 				if (nodeInParentGraph) {
+					console.log("nodeInParentGraph: ")
+					console.log(nodeInParentGraph);
 					const name = this.widgets.value;
 					const input = nodeInParentGraph.inputs.find((input) => input.name === name);
 					console.log(input);
