@@ -177,8 +177,8 @@ app.registerExtension({
                 const input = this.inputs[slot];
                 const output = this.outputs[slot]
                 if (isChangeConnect) {
-                    const sourceType = this.graph.getNodeById(link_info.origin_id).outputs[link_info.origin_slot].type;
-                    const targetType = this.graph.getNodeById(link_info.target_id).inputs[link_info.target_slot].type;
+                    const sourceType = this.graph?.getNodeById(link_info.origin_id).outputs[link_info.origin_slot].type;
+                    const targetType = this.graph?.getNodeById(link_info.target_id).inputs[link_info.target_slot].type;
 
                     const sourceAny = sourceType === '*';
                     const targetAny = targetType === '*';
@@ -188,10 +188,7 @@ app.registerExtension({
                     console.log(targetType);
                     if (!sourceAny || !targetAny) {
                         const t = !sourceAny ? sourceType : targetType;
-                        input.type = t;
-                        input.name = t;
-                        output.type = t;
-                        output.name = t;
+                        this.setSlot(slot, t);
                     }
                     //this.inputs[slot].name = 
                 } else {
@@ -201,10 +198,7 @@ app.registerExtension({
                     console.log("output:");
                     console.log(output);
                     if (!input.link && (!output.links || output.links.length == 0)) {
-                        input.type = '*';
-                        input.name = '*';
-                        output.type = '*';
-                        output.name = '*';
+                        this.setSlot(slot, '*');
                     }
                 }
 
@@ -240,6 +234,26 @@ app.registerExtension({
                 this.removeTemporary();
             }
             */
+
+
+            clone() {
+                console.log("CLONE");
+                const cloned = super.clone.apply(this);
+                this.inputs.forEach((input) => {
+                    input.type = '*';
+                    input.name = '*';
+                });
+                this.inputs.forEach((output) => {
+                    output.type = '*';
+                    output.name = '*';
+                })
+                //cloned.inputs = [];
+                //cloned.inputs[0].name = '*';
+                //cloned.inputs[0].type = '*';
+                //cloned.properties.previousName = '';
+                //cloned.size = cloned.computeSize();
+                return cloned;
+            };
 
 
 			onAdded(graph) {
