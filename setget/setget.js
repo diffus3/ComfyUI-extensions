@@ -3,6 +3,7 @@ import { ComfyWidgets } from '/scripts/widgets.js'
 
 // Node that allows you to tunnel connections for cleaner graphs
 
+
 app.registerExtension({
 	name: "diffus3.SetNode",
 	registerCustomNodes() {
@@ -74,7 +75,7 @@ app.registerExtension({
 								if (otherNode == this) {
 									return false;
 								}
-								if (otherNode.type == 'TunnelIn' && otherNode.widgets[0].value === widgetValue) {
+								if (otherNode.type == 'diffus3.SetNode' && otherNode.widgets[0].value === widgetValue) {
 									return true;
 								}
 								return false;
@@ -85,6 +86,7 @@ app.registerExtension({
 							tries++;
 						} while (collisions.length > 0)
 						node.widgets[0].value = widgetValue;
+						this.update();
 					}
 				}
 
@@ -114,12 +116,19 @@ app.registerExtension({
 								getter.setName(this.widgets[0].value)
 							});
 						}
+
+						const allGetters = node.graph._nodes.filter((otherNode) => otherNode.type == "diffus3.GetNode");
+						allGetters.forEach((otherNode) => {
+							if (otherNode.setComboValues) {
+								otherNode.setComboValues();
+							}
+						})
 					}
 				}
 
 
-				this.findGetters = function(graph, previous) {
-					const name = previous ? this.properties.previousName : this.widgets[0].value;
+				this.findGetters = function(graph, checkForPreviousName) {
+					const name = checkForPreviousName ? this.properties.previousName : this.widgets[0].value;
 					return graph._nodes.filter((otherNode) => {
 						console.log("otherNode.type:");
 						console.log(otherNode.type)
@@ -164,6 +173,7 @@ app.registerExtension({
 				this.properties.showOutputText = TunnelNodeOut.defaultVisibility;
 				
 				const node = this;
+				/*
 				this.addWidget(
 					"text", 
 					"Variable", 
@@ -173,6 +183,19 @@ app.registerExtension({
 					}, 
 					{}
 				)
+				*/
+				this.addWidget(
+					"combo",
+					"Output",
+					"",
+					(e) => {
+						this.onRename();
+					},
+					{
+						values: []
+					}
+				)
+
 
 				this.addOutput("*", '*');
 
@@ -198,6 +221,23 @@ app.registerExtension({
 					//this.widgets[0].callback(name);
 					node.onRename();
 					node.serialize();
+				}
+
+				this.setComboValues = function() {
+					//console.log(this.graph._subgraph_node);
+					//console.log(this.graph.outputs);
+					const graph = this.graph
+					if (graph) {
+						const setterNodes = graph._nodes.filter((otherNode) => otherNode.type == 'diffus3.SetNode' && otherNode.widgets[0].value != '');
+						console.log("setting combo values");
+						console.log(setterNodes.length);
+						this.widgets[0].options.values = setterNodes.map((otherNode) => otherNode.widgets[0].value);
+						//subgraphNode.outputs.map((output) => output.name);
+						//this.widgets[0].options.values = ["test", "test"];
+						//console.log(subgraphNode.outputs);
+					} else {
+						this.widgets[0].options.values = [];
+					}
 				}
 				
 
@@ -257,26 +297,26 @@ app.registerExtension({
 			}
 
 
-			getInputLink = function(slot) {
+			getInputLink(slot) {
 				const setter = this.findSetter(this.graph);
 
-				/*
-				const setters = app.graph._nodes.filter((otherNode) => {
-					const name = this.widgets[0].value
-					if (otherNode.type == 'TunnelIn' && otherNode.widgets[0].value === name && name != '') {
-						return true;
-					}
-					return false;
-				});
+				
+				// const setters = app.graph._nodes.filter((otherNode) => {
+				// 	const name = this.widgets[0].value
+				// 	if (otherNode.type == 'TunnelIn' && otherNode.widgets[0].value === name && name != '') {
+				// 		return true;
+				// 	}
+				// 	return false;
+				// });
 
-				if (setters.length > 1) {
-					throw new Error("Multiple setters found for " + this.widgets[0].value);
-				}
+				// if (setters.length > 1) {
+				// 	throw new Error("Multiple setters found for " + this.widgets[0].value);
+				// }
 
-				if (setters.length == 0) {
-					throw new Error("No setter found for " + this.widgets[0].value);
-				}
-				*/
+				// if (setters.length == 0) {
+				// 	throw new Error("No setter found for " + this.widgets[0].value);
+				// }
+				
 
 				if (setter) {
 					const slot_info = setter.inputs[slot];
@@ -286,6 +326,11 @@ app.registerExtension({
 				}
 
 			}
+			onAdded(graph) {
+				this.setComboValues();
+				//this.validateName(graph);
+			}
+
 		}
 
 

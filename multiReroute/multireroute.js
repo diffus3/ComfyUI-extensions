@@ -176,8 +176,8 @@ app.registerExtension({
                 
                 const input = this.inputs[slot];
                 const output = this.outputs[slot]
-                const sourceNode = this.graph.getNodeById(link_info.origin_id);
-                const targetNode = this.graph.getNodeById(link_info.target_id);
+                const sourceNode = this.graph?.getNodeById(link_info.origin_id);
+                const targetNode = this.graph?.getNodeById(link_info.target_id);
                 if (isChangeConnect && this.graph) {
                     const sourceType = sourceNode?.outputs[link_info.origin_slot]?.type;
                     const targetType = targetNode?.inputs[link_info.target_slot]?.type;
@@ -191,15 +191,12 @@ app.registerExtension({
                     if (!sourceAny || !targetAny) {
                         const t = !sourceAny ? sourceType : targetType;
                         this.setSlot(slot, t);
-
-                        return;
                     }
                     //this.inputs[slot].name = 
-                }/* else if (input && output && !input.link && (!output.links || output.links.length == 0)) {
+                } else if (input && output && !input.link && (!output.links || output.links.length == 0)) {
                     this.setSlot(slot, '*');
                 }
-                */
-               this.setSlot(slot, '*');
+        
 
                 //validateLinks(this);
                 //this.inputs[slot].name = 
