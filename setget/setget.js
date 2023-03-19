@@ -4,6 +4,7 @@ import { ComfyWidgets } from '/scripts/widgets.js'
 // Node that allows you to tunnel connections for cleaner graphs
 
 
+
 app.registerExtension({
 	name: "diffus3.SetNode",
 	registerCustomNodes() {
@@ -23,8 +24,8 @@ app.registerExtension({
 				
 				this.addWidget(
 					"text", 
-					"Variable", 
-					"", 
+					"Constant", 
+					'', 
 					(s, t, u, v, x) => {
 						node.validateName(node.graph);
 						this.update();
@@ -107,6 +108,8 @@ app.registerExtension({
 
 
 				this.update = function() {
+					console.log("SetNode.update()");
+					console.log(this.widgets[0].value);
 					if (node.graph) {
 						this.findGetters(node.graph).forEach((getter) => {
 							getter.setType(this.inputs[0].type);
@@ -130,8 +133,8 @@ app.registerExtension({
 				this.findGetters = function(graph, checkForPreviousName) {
 					const name = checkForPreviousName ? this.properties.previousName : this.widgets[0].value;
 					return graph._nodes.filter((otherNode) => {
-						console.log("otherNode.type:");
-						console.log(otherNode.type)
+						//console.log("otherNode.type:");
+						//console.log(otherNode.type)
 						if (otherNode.type == 'diffus3.GetNode' && otherNode.widgets[0].value === name && name != '') {
 							return true;
 						}
@@ -142,6 +145,18 @@ app.registerExtension({
 
 				// This node is purely frontend and does not impact the resulting prompt so should not be serialized
 				this.isVirtualNode = true;
+			}
+
+			onRemoved() {
+				console.log("onRemove");
+				console.log(this);
+				console.log(this.flags);
+				const allGetters = this.graph._nodes.filter((otherNode) => otherNode.type == "diffus3.GetNode");
+				allGetters.forEach((otherNode) => {
+					if (otherNode.setComboValues) {
+						otherNode.setComboValues([this]);
+					}
+				})
 			}
 		}
 
@@ -161,7 +176,7 @@ app.registerExtension({
 app.registerExtension({
 	name: "diffus3.GetNode",
 	registerCustomNodes() {
-		class TunnelNodeOut {
+		class GetNode {
 
 			defaultVisibility = true;
 			serialize_widgets = true;
@@ -170,29 +185,25 @@ app.registerExtension({
 				if (!this.properties) {
 					this.properties = {};
 				}
-				this.properties.showOutputText = TunnelNodeOut.defaultVisibility;
+				this.properties.showOutputText = GetNode.defaultVisibility;
 				
 				const node = this;
-				/*
-				this.addWidget(
-					"text", 
-					"Variable", 
-					"", 
-					(s) => {
-						this.onRename()
-					}, 
-					{}
-				)
-				*/
 				this.addWidget(
 					"combo",
-					"Output",
+					"Constant",
 					"",
 					(e) => {
 						this.onRename();
 					},
 					{
-						values: []
+						values: () => {
+                            const setterNodes = graph._nodes.filter((otherNode) => otherNode.type == 'diffus3.SetNode');
+                            //console.log("setting combo values");
+                            /*setterNodes.forEach((otherNode) => {
+                                console.log(otherNode.widgets[0].value)
+                            })*/
+                            return setterNodes.map((otherNode) => otherNode.widgets[0].value).sort();
+                        }
 					}
 				)
 
@@ -215,29 +226,8 @@ app.registerExtension({
 					console.log("renaming getter: ");
 					console.log(node.widgets[0].value + " -> " + name);
 					node.widgets[0].value = name;
-					//node.widgets[0].callback(name);
-					//console.log(this.widgets[0]);
-					//app.canvas.inner
-					//this.widgets[0].callback(name);
 					node.onRename();
 					node.serialize();
-				}
-
-				this.setComboValues = function() {
-					//console.log(this.graph._subgraph_node);
-					//console.log(this.graph.outputs);
-					const graph = this.graph
-					if (graph) {
-						const setterNodes = graph._nodes.filter((otherNode) => otherNode.type == 'diffus3.SetNode' && otherNode.widgets[0].value != '');
-						console.log("setting combo values");
-						console.log(setterNodes.length);
-						this.widgets[0].options.values = setterNodes.map((otherNode) => otherNode.widgets[0].value);
-						//subgraphNode.outputs.map((output) => output.name);
-						//this.widgets[0].options.values = ["test", "test"];
-						//console.log(subgraphNode.outputs);
-					} else {
-						this.widgets[0].options.values = [];
-					}
 				}
 				
 
@@ -253,7 +243,7 @@ app.registerExtension({
 				}
 
 				this.clone = function () {
-					const cloned = TunnelNodeOut.prototype.clone.apply(this);
+					const cloned = GetNode.prototype.clone.apply(this);
 					cloned.size = cloned.computeSize();
 					//this.update();
 					return cloned;
@@ -282,9 +272,9 @@ app.registerExtension({
 				this.findSetter = function(graph) {
 					const name = this.widgets[0].value;
 					return graph._nodes.find((otherNode) => {
-						console.log("findSetter");
-						console.log("otherNode.type");
-						console.log(otherNode.type);
+						//console.log("findSetter");
+						//console.log("otherNode.type");
+						//console.log(otherNode.type);
 						if (otherNode.type == 'diffus3.SetNode' && otherNode.widgets[0].value === name && name != '') {
 							return true;
 						}
@@ -298,7 +288,10 @@ app.registerExtension({
 
 
 			getInputLink(slot) {
+                console.log("get.getInputLink(): " + slot);
 				const setter = this.findSetter(this.graph);
+                console.log("setter:");
+                console.log(setter);
 
 				
 				// const setters = app.graph._nodes.filter((otherNode) => {
@@ -320,14 +313,22 @@ app.registerExtension({
 
 				if (setter) {
 					const slot_info = setter.inputs[slot];
-					return this.graph.links[ slot_info.link ];
+                    console.log("slot info");
+                    console.log(slot_info);
+                    console.log(this.graph.links);
+                    const link = this.graph.links[ slot_info.link ];
+                    console.log("link:");
+                    console.log(link);
+                    return link;
 				} else {
-					throw new Error("No setter found for " + this.widgets[0].value);
+                    console.log(this.widgets[0]);
+                    console.log(this.widgets[0].value);
+					throw new Error("No setter found for " + this.widgets[0].value + "(" + this.type + ")");
 				}
 
 			}
 			onAdded(graph) {
-				this.setComboValues();
+				//this.setComboValues();
 				//this.validateName(graph);
 			}
 
@@ -336,11 +337,11 @@ app.registerExtension({
 
 		LiteGraph.registerNodeType(
 			"diffus3.GetNode",
-			Object.assign(TunnelNodeOut, {
+			Object.assign(GetNode, {
 				title: "Get",
 			})
 		);
 
-		TunnelNodeOut.category = "utils";
+		GetNode.category = "utils";
 	},
 });
