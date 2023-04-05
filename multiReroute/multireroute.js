@@ -1,3 +1,5 @@
+// Node that allows you to redirect connections for cleaner graphs
+
 import { app } from "/scripts/app.js";
 import { ComfyWidgets } from '/scripts/widgets.js'
 
@@ -36,117 +38,6 @@ const validateLink = function(graph, linkId) {
 	//const input =
 }
 
-/*
-class VariablePinNode extends LGraphNode {
-
-	tempIn = undefined;
-	tempOut = undefined;
-	//nextInput = 1;
-	//nextOutput = 1;
-
-	constructor(title) {
-		super(title);
-	}
-
-	onMouseEnter(e) {
-		console.log("---");
-		console.log("MouseEnter");
-		console.log(e);
-		const connectingInput = app.canvas.connecting_input;
-		if (connectingInput) {
-			console.log("connecting input:");
-			console.log(connectingInput);
-			if (!this.tempOut) {
-				this.tempOut = this.addOutput('*', '*');
-				this.tempOut.removable = true;
-			}
-		}
-
-		const connectingOutput = app.canvas.connecting_output
-		if (connectingOutput) {
-			console.log("connecting output:");
-			console.log(connectingOutput);
-			if (!this.tempIn) {
-				this.tempIn = this.addInput('*', '*');
-				this.tempIn.removable = true;
-			}
-		}
-	}
-
-	onMouseLeave(e) {
-		this.removeTemporary();
-	}
-
-    onConnectionsChange(
-        slotType,	//1 = input, 2 = output
-        slot,
-        isChangeConnect,
-        link_info,
-        output
-    ) {
-        console.log("onConnectionsChange");
-        //On Input Disconnect
-        if (slotType == 1 && !isChangeConnect) {
-            this.inputs[slot].type = '*';
-            this.inputs[slot].name = '*';
-            this.outputs[slot].type = '*';
-            this.outputs[slot].name = '*';
-        }
-
-        //On Connect
-        if (node.graph && slotType == 1 && isChangeConnect) {
-            const fromNode = node.graph._nodes.find((otherNode) => otherNode.id == link_info.origin_id);
-            const type = fromNode.outputs[link_info.origin_slot].type;
-
-            this.inputs[0].type = type;
-            this.inputs[0].name = type;
-        }
-
-        //Update either way
-        this.update();
-    }
-
-	onConnectInput(target_slot, type, output, x, slot) {
-		if (target_slot == this.inputs.length - 1) {
-			this.tempIn = undefined;
-			//this.inputs[target_slot].name = "in_" + this.nextInput++;
-		}
-        //this.inputs[target_slot].type = type;
-		//this.inputs[target_slot].type = type;
-		this.removeTemporary();
-	}
-
-	onConnectOutput(slot, type, input, x, target_slot) {
-		if (slot == this.outputs.length - 1) {
-			this.tempOut = undefined;
-			this.outputs[slot].name = "out_" + this.nextOutput++;
-		}
-		//this.outputs[slot].type = type;
-
-		this.removeTemporary();
-	}
-
-	removeTemporary() {
-		if (this.tempOut) {
-			this.outputs.pop();
-			this.tempOut = undefined
-		}
-		if (this.tempIn) {
-			this.inputs.pop();
-			this.tempIn = undefined
-		}
-	}
-
-	static setDefaultTextVisibility(visible) {
-		MultiRerouteNode.defaultVisibility = visible;
-		if (visible) {
-			localStorage["Comfy.RerouteNode.DefaultVisibility"] = "true";
-		} else {
-			delete localStorage["Comfy.RerouteNode.DefaultVisibility"];
-		}
-	}
-}
-*/
 
 app.registerExtension({
 	name: "diffus3.MultiReroute",
@@ -160,6 +51,10 @@ app.registerExtension({
 					this.properties = {};
 				}
 				this.properties.showOutputText = MultiRerouteNode.defaultVisibility;
+
+
+				this.addInput('', '*');
+				this.addOutput(this.properties.showOutputText ? "*" : "", '*');
 
 				// This node is purely frontend and does not impact the resulting prompt so should not be serialized
 				this.isVirtualNode = true;
@@ -209,27 +104,29 @@ app.registerExtension({
             }
 
             setSlot(slot, type) {
+				console.log("setSlot");
                 this.inputs[slot].type = type;
                 this.inputs[slot].name = type;
                 this.outputs[slot].type = type;
-                this.outputs[slot].name = type; 
+                this.outputs[slot].name = type;
+				console.log(this.inputs[slot]);
+				const linkId = this.inputs[slot].link;
+				const link = this.graph.links[linkId];
+				if (link && link.type != this.inputs[slot].type) {
+					link.type = this.inputs[slot].type;
+					const otherNode = this.graph.getNodeById(link.origin_id);
+					if (otherNode.onConnectionsChange) {
+						otherNode.onConnectionsChange(
+							LiteGraph.OUTPUT,
+							link.origin_slot,
+							true,
+							link,
+							otherNode.outputs[link.origin_slot],
+						);
+					}
+					console.log(link);
+				}
             }
-
-            /*
-            onConnectInput(target_slot, type, output, x, slot) {
-                this.inputs[target_slot].type = type;
-                this.inputs[target_slot].type = type;
-                this.removeTemporary();
-            }
-
-            onConnectOutput(slot, type, input, x, target_slot) {
-                this.inputs[target_slot].type = type;
-                this.inputs[target_slot].type = type;
-                //this.outputs[slot].type = type;
-
-                this.removeTemporary();
-            }
-            */
 
 
             clone() {
@@ -260,27 +157,77 @@ app.registerExtension({
 			}
 
             getExtraMenuOptions(_, options) {
-                if (super.getExtraMenuOptions) {
-                    super.getExtraMenuOptions(_, options);
-                }
-                options.unshift(
+				options.unshift(
+					{
+						content: (this.properties.showOutputText ? "Hide" : "Show") + " Type",
+						callback: () => {
+							this.properties.showOutputText = !this.properties.showOutputText;
+							if (this.properties.showOutputText) {
+								this.outputs[0].name = this.__outputType || this.outputs[0].type;
+							} else {
+								this.outputs[0].name = "";
+							}
+							this.size = this.computeSize();
+							app.graph.setDirtyCanvas(true, true);
+						},
+						
+					},
+					{
+						content: (MultiRerouteNode.defaultVisibility ? "Hide" : "Show") + " Type By Default",
+						callback: () => {
+							MultiRerouteNode.setDefaultTextVisibility(!MultiRerouteNode.defaultVisibility);
+						},
+					},
                     {
                         content: "Add Input/Output pair",
                         callback: () => {
-                            this.addInput('*', '*');
-                            this.addOutput('*', '*');
+                            this.addInput('', '*');
+                            this.addOutput(this.properties.showOutputText ? "*" : "", '*');
                             this.computeSize();
                         },
                     },
-                );
-            }
+                    {
+                        content: "Remove Input/Output pair",
+						enabled: this.inputs.length > 1 && this.outputs.length > 1,
+                        callback: () => {
+							if (this.inputs.length > 1 && this.outputs.length > 1) {
+								this.removeInput(this.inputs.length -1)
+								this.removeOutput(this.outputs.length -1)
+							}
+                            this.computeSize();
+                        },
+                    },
+				);
+			}
+			computeSize() {
+				return [
+					this.properties.showOutputText && this.outputs && this.outputs.length
+						? Math.max(75, LiteGraph.NODE_TEXT_SIZE * this.outputs[0].name.length * 0.6 + 40)
+						: 75,
+					(this.outputs && this.outputs.length > 1) ? 26 + (this.outputs.length - 1) * 20 : 26,
+				];
+			}
+
+			static setDefaultTextVisibility(visible) {
+				MultiRerouteNode.defaultVisibility = visible;
+				if (visible) {
+					localStorage["diffus3.MultiReroute.DefaultVisibility"] = "true";
+				} else {
+					delete localStorage["diffus3.MultiReroute.DefaultVisibility"];
+				}
+			}
 		}
 
+
+		// Load default visibility
+		MultiRerouteNode.setDefaultTextVisibility(!!localStorage["diffus3.MultiReroute.DefaultVisibility"]);
 
 		LiteGraph.registerNodeType(
 			"diffus3.MultiReroute",
 			Object.assign(MultiRerouteNode, {
+				title_mode: LiteGraph.NO_TITLE,
 				title: "Multi Reroute",
+				collapsable: false,
 			})
 		);
 

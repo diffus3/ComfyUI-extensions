@@ -1,5 +1,9 @@
+
+//BROKEN. DO NOT USE. PROBABLY WON'T FIX.
+
 // import { app } from "/scripts/app.js";
 // import { ComfyWidgets } from '/scripts/widgets.js'
+
 
 
 // const showInputDialog = function(node, labels, callback, initialValues = []) {
