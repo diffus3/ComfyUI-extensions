@@ -1,5 +1,7 @@
 // Node that allows you to redirect connections for cleaner graphs
 
+//BROKEN. DO NOT USE. WILL FIX EVENTUALLY.
+/*
 import { app } from "/scripts/app.js";
 import { ComfyWidgets } from '/scripts/widgets.js'
 
@@ -234,3 +236,4 @@ app.registerExtension({
 		MultiRerouteNode.category = "utils";
 	},
 });
+*/
