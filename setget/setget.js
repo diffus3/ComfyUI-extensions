@@ -52,7 +52,7 @@ app.registerExtension({
 					}
 
 					//On Connect
-					if (node.graph && slotType == 1 && isChangeConnect) {
+					if (link_info && node.graph && slotType == 1 && isChangeConnect) {
 						const fromNode = node.graph._nodes.find((otherNode) => otherNode.id == link_info.origin_id);
 						const type = fromNode.outputs[link_info.origin_slot].type;
 
